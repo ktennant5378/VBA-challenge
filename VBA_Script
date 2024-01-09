@@ -1,0 +1,131 @@
+Sub Yearly_Change_110()
+    'Determine the Variables and Dictionary Objects. Set worksheet
+        Dim ws As Worksheet
+        Dim BeginDate As Double 
+        Dim EndDate As Double 
+        Dim TheDate As Range
+        Dim Ticker As Variant
+        Dim i As Long
+        Dim Tickers As Object
+        Dim BeginPrice As Object
+        Dim EndPrice As Object
+        Dim TotalVolume As Object
+        Dim PercentChangeArray As Object
+        Dim wsNames As Variant
+        
+        Set TotalVolume = CreateObject("Scripting.Dictionary")
+        Set PercentChangeArray = CreateObject("Scripting.Dictionary")
+        Set Tickers = CreateObject("Scripting.Dictionary")
+        Set BeginPrice = CreateObject("Scripting.Dictionary")
+        Set EndPrice = CreateObject("Scripting.Dictionary")
+        
+        wsNames = Array("2018", "2019", "2020")
+    'Start the loop through each worksheet
+        For Each wsName In wsNames
+        Set ws = ThisWorkbook.Sheets(wsName)
+
+    'Get all the ticker symbols into an array
+        For Each cell In ws.Range("A2:A" & ws.Cells(ws.Rows.Count, "A").End(xlUp).Row)
+            Ticker = cell.Value
+            If Not Tickers.Exists(Ticker) Then
+                Tickers.Add Ticker, Ticker
+            End If
+        Next cell
+
+        BeginDate = "20200102"
+        EndDate = "20201231"
+
+    'Loop through each ticker in the array and find the beginning and ending price for the year for each ticker symbol 
+        For Each key In Tickers.keys
+            For Each dateCell In ws.Range("B2:B" & ws.Cells(ws.Rows.Count, "B").End(xlUp).Row)' loop through each date 
+                If dateCell.Offset(0, -1).Value = key Then'
+                    If dateCell.Value = BeginDate Then' if the date matches the begin date and the ticker symbol matches the ticker symbol
+                        BeginPrice(key) = dateCell.Offset(0, 1).Value '
+                    End If
+                    If dateCell.Value = EndDate Then
+                        EndPrice(key) = dateCell.Offset(0, 4).Value
+                    End If
+                End If
+            Next dateCell
+        Next key
+    'Loop Through each ticker in the array and calculate their total stock volume for the year
+        For Each key In Tickers.keys' loop through each ticker symbol
+            For Each dateCell In ws.Range("B2:B" & ws.Cells(ws.Rows.Count, "B").End(xlUp).Row)' loop through each date
+                If dateCell.Offset(0, -1).Value = key Then' if the date matches the begin date and the ticker symbol matches the ticker symbol
+                    If Not TotalVolume.Exists(key) Then' if the ticker symbol does not exist in the TotalVolume dictionary
+                        TotalVolume.Add key, dateCell.Offset(0, 5).Value' add the ticker symbol and the volume to the TotalVolume dictionary
+                    Else' if the ticker symbol does exist in the TotalVolume dictionary
+                        TotalVolume(key) = TotalVolume(key) + dateCell.Offset(0, 5).Value' add the volume to the total volume for this ticker
+                    End If
+                End If
+            Next dateCell
+        Next key
+    'Paste the ticker symbols into the new column with their respective yearly change
+        ws.cells(1,9).Value = "Ticker"
+        ws.cells(1,10).Value = "Yearly Change"
+        ws.cells(1,11).Value = "Percent Change"
+        ws.cells(1,12).Value = "Total Stock Volume"
+        
+        Dim rowCounter As Long
+        rowCounter = 2 ' Start from row 2
+
+        For Each key In Tickers.keys
+            ws.Range("I" & rowCounter).Value = key ' Ticker Symbol
+            ws.Range("J" & rowCounter).Value = EndPrice(key) - BeginPrice(key) ' Yearly Change
+            ws.Range("K" & rowCounter).Value = (EndPrice(key) - BeginPrice(key)) / BeginPrice(key) ' Percentage Change
+            ws.Range("L" & rowCounter).Value = TotalVolume(key) ' Total Stock Volume
+            
+            'Store the percent change value in the PercentChangeArray dictionary
+            PercentChangeArray(key) = (EndPrice(key) - BeginPrice(key)) / BeginPrice(key)
+
+            rowCounter = rowCounter + 1 ' Move to the next row
+        Next key
+    
+    'Calculate the Greatest % Increase, Lowest % Increase and Total Volume
+        Dim GreatestTotalVolumeTicker As String
+        Dim GreatestPercentageChangeTicker As String
+        Dim LowestPercentageChangeTicker As String
+
+        ' Calculate the Greatest Total Volume
+        For Each key In Tickers.keys
+            If TotalVolume(key) > GreatestTotalVolume Then
+                GreatestTotalVolume = TotalVolume(key)
+                GreatestTotalVolumeTicker = key
+            End If
+        Next key
+
+        ' Calculate the Greatest % Increase
+        For Each key In Tickers.keys
+            If PercentChangeArray(key) > GreatestPercentageChange Then
+                GreatestPercentageChange = PercentChangeArray(key)
+                GreatestPercentageChangeTicker = key
+            End If
+        Next key
+
+        ' Calculate the Least % Increase
+        For Each key In Tickers.keys
+            If PercentChangeArray(key) < LowestPercentageChange Then
+                LowestPercentageChange = PercentChangeArray(key)
+                LowestPercentageChangeTicker = key
+            End If
+        Next key
+
+        ' Paste the Greatest % Increase, Lowest % Increase and Total Volume into the new column
+            ws.cells(1,15).Value = "Ticker"
+            ws.cells(1,16).Value = "Value"
+            ws.Range("P2").Value = GreatestPercentageChange
+            ws.Range("P3").Value = LowestPercentageChange
+            ws.Range("P4").Value = GreatestTotalVolume
+            ws.Range("N2").Value = "Greatest % Increase"
+            ws.Range("N3").Value = "Greatest % Decrease"
+            ws.Range("N4").Value = "Greatest Total Volume"
+            ws.Range("O2").Value = GreatestPercentageChangeTicker
+            ws.Range("O3").Value = LowestPercentageChangeTicker
+            ws.Range("O4").Value = GreatestTotalVolumeTicker
+
+            ' Format the cells as percentages
+            ws.Range("P2:P3").NumberFormat = "0.00%"
+
+        Next wsName 'Move to the next worksheet
+
+End Sub
